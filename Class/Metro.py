@@ -11,8 +11,6 @@ from types import GeneratorType
 class MetroScraper():
     name = 'metro'
     current_category = ''
-    current_page = 1
-    last_page = 0
     css_selectors = {
         'products': '#gallery-layout-container > div',
         'images': 'div.vtex-product-summary-2-x-imageContainer img',
@@ -57,9 +55,8 @@ class MetroScraper():
             time.sleep(5)
             self.body = self.drv.find_element(By.TAG_NAME, "body")
             yield self.drv
+
             print("pasando a otra url")
-            self.current_page = 1
-            self.last_page = 0
             self.max_trying = 0
             
         print(f'FIN del scraping en {self.name}')
