@@ -8,19 +8,21 @@ class PlazaveaScraper(Scraper):
     name = 'plazavea'
     current_category = ''
     current_page = 1
+    last_page = 0
     css_selectors = {
-        'products': 'div.HA.Showcase.Showcase--food',
+        'products': 'div.HA.Showcase',
         'images': 'figure.Showcase__photo img',
         'brand': 'div.Showcase__brand a',
         'name': 'a.Showcase__name',
         'presentation': 'div.Showcase__units-reference',
         'price': 'div.Showcase__salePrice',
-        'next_page': 'span.pagination__item.page-control.next '
+        'active_page': 'div.pagination__nav span.page-number.active',
+        'all_pagination_btns': 'div.pagination__nav span.page-number',
     }
     base_urls = [
+        { 'category': 'Congelados', 'url': 'https://www.plazavea.com.pe/congelados' },
         { 'category': 'Carnes, aves y pescados', 'url': 'https://www.plazavea.com.pe/carnes-aves-y-pescados' },
         { 'category': 'Frutas y verduras', 'url': 'https://www.plazavea.com.pe/frutas-y-verduras' },
-        { 'category': 'Congelados', 'url': 'https://www.plazavea.com.pe/congelados' },
         { 'category': 'Lacteos y Huevos', 'url': 'https://www.plazavea.com.pe/lacteos-y-huevos' },
         { 'category': 'Quesos y fiambres', 'url': 'https://www.plazavea.com.pe/quesos-y-fiambres' },
         { 'category': 'Abarrotes', 'url': 'https://www.plazavea.com.pe/abarrotes' },
@@ -39,6 +41,7 @@ class PlazaveaScraper(Scraper):
             yield self.get_page(url=url['url'])
             print("pasando a otra url")
             self.current_page = 1
+            self.last_page = 0
             
         print(f'FIN del scraping en {self.name}')
         print("=="*50)
@@ -72,18 +75,13 @@ class PlazaveaScraper(Scraper):
 
         # Obtener boton de paginacion "siguiente" para avanzar de pagina
         pagination_forward = self.get_pagination_btn(driver=response)
-        if pagination_forward and pagination_forward.is_enabled():
+        if pagination_forward:
             self.current_page += 1
-            yield self.go_next_page(next_button=pagination_forward)
-
-    def go_next_page(self, next_button: WebElement = None):
-        try:
-            return self.next_page(pagination_forward=next_button, callback=self.parse)
-        except ElementNotInteractableException:
-            print("Aparecio el modal")
-            self.remove_modal_from_screen()
-            input("Presiona enter para continuar")
-            return self.next_page(pagination_forward=next_button, callback=self.parse)
+            yield self.next_page(
+                pagination_forward=pagination_forward,
+                callback=self.parse,
+                next_page_number = pagination_forward.text
+            )
 
     def validating_images(self, images: list = []) -> WebElement:
         """Funcion para validar la cantidad de imagenes que existe
@@ -100,14 +98,28 @@ class PlazaveaScraper(Scraper):
     def get_pagination_btn(self, driver: webdriver = None) -> WebElement:
         """Funcion que obtiene los botones de paginacion de la pagina"""
 
-        # Obtengo los botones de atras y adelante de la paginacion
-        # solo me interesa el boton de adelante
-        pagination_btn = self.get_element(css=self.css_selectors['next_page'], driver=driver)
-        return pagination_btn
+        # Obtener el boton activo
+        active_btn = self.get_element(css=self.css_selectors['active_page'], driver=driver)
+        if active_btn:
+            active_btn_value = int(active_btn.text)
+        else:
+            return False
 
-    
-    def remove_modal_from_screen(self) -> None:
-        """Funcion para remover el modal de valoracion"""
-        pass
+        # verificar si existe el valor de last_page
+        if not self.last_page:
+            pagination_btns = self.get_elements(css=self.css_selectors['all_pagination_btns'], driver=driver)
+            self.last_page = int(pagination_btns[-1].text)
 
-    
+        # Significa que el boton activo es el ultimo
+        if active_btn_value == self.last_page:
+            return False
+        
+        # Significa que todavia quedan paginas por visitar
+        if active_btn_value < self.last_page:
+            pagination_btns = self.get_elements(css=self.css_selectors['all_pagination_btns'], driver=driver)
+
+            for index, page in enumerate(pagination_btns):
+                num = page.text
+                if num != '...' and int(page.text) == active_btn_value:
+                    return pagination_btns[index + 1]
+

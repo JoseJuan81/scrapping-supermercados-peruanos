@@ -5,7 +5,7 @@ from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
 
 class Scraper:
     def __init__(self) -> None:
@@ -13,6 +13,7 @@ class Scraper:
         self.options.add_argument("--headless=new")
         self.drv = webdriver.Chrome(options = self.options)
         self.drv.implicitly_wait(5)
+        self.current_url = ''
         self.first_time_saving = True
         self.data_recollected = []
 
@@ -28,10 +29,9 @@ class Scraper:
 
         for gen in self.generator:
             data_page_generator = self.parse(gen)
+            self.extracting_page_data(generator=data_page_generator, current_url = gen)
 
-            self.extracting_page_data(generator=data_page_generator)
-
-    def extracting_page_data(self, generator: GeneratorType = None) -> None:
+    def extracting_page_data(self, generator: GeneratorType = None, current_url: str = '') -> None:
         """Funcion que guarda los valores obtenidos de cada producto o
         se ejecuta recursivamente"""
 
@@ -52,6 +52,7 @@ class Scraper:
     def get_page(self, url: str = '') -> webdriver:
         """Funcion que direcciona a la pagina objetivo"""
 
+        self.current_url = url
         self.drv.get(url)
         return self.drv
 
@@ -118,9 +119,20 @@ class Scraper:
             self.drv.execute_script("window.scrollTo(0, {});".format(i))
             time.sleep(wait_time)
 
-    def next_page(self, pagination_forward: WebElement = None, callback: callable = None):
+    def next_page(self, pagination_forward: WebElement = None, callback: callable = None, next_page_number: str = ''):
         """Funcion para ir a la siguiente pagina si existe"""
 
-        pagination_forward.click()
-        yield callback(self.drv)
+        try:
+            pagination_forward.click()
+            yield callback(self.drv)
+        except ElementClickInterceptedException:
+            print("!"*20)
+            print("El boton de la paginacion no pudo ser presionado")
+            print("Otro elemento lo ha interceptado")
+            print("!"*20)
+
+            url = f'{self.current_url}?page={next_page_number}'
+            print(url)
+            self.get_page(url=url)
+            yield callback(self.drv)
         
