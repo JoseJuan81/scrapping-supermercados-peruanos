@@ -10,9 +10,10 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 class Scraper:
     def __init__(self) -> None:
         self.options = webdriver.ChromeOptions()
-        self.options.add_argument("--headless=new")
+        # self.options.add_argument("--headless=new")
+        self.options.add_argument("--window-size=2800,2400")
         self.drv = webdriver.Chrome(options = self.options)
-        self.drv.implicitly_wait(5)
+        self.drv.implicitly_wait(10)
         self.current_url = ''
         self.first_time_saving = True
         self.data_recollected = []
@@ -89,7 +90,9 @@ class Scraper:
 
         df = pd.DataFrame(self.data_recollected)
 
-        file_path = self.get_saving_path(file_name=file_name)
+        current_time = self.get_current_time()
+        new_file_name = file_name + self.current_category + current_time
+        file_path = self.get_saving_path(file_name=new_file_name)
 
         if self.first_time_saving:
             df.to_csv(file_path, index=False, mode='w')
@@ -136,3 +139,14 @@ class Scraper:
             self.get_page(url=url)
             yield callback(self.drv)
         
+    def get_current_time(self) -> str:
+        """Funcion para obtener la fecha completa actual"""
+
+        current_time_in_seconds = time.time()
+        local_current_time = time.localtime(current_time_in_seconds)
+
+        date = time.strftime("%Y-%m-%d", local_current_time)
+        date_time = time.strftime("%H:%M:%S", local_current_time)
+
+        full_data = f"{date}-{date_time}"
+        return full_data

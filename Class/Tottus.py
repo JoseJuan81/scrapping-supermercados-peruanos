@@ -95,13 +95,17 @@ class TottusScraper(Scraper):
         """Funcion para validar la cantidad de imagenes que existe
         en cada producto"""
 
-        # Si son 2 imagenes tomar la segunda por ser la estandar
-        # La primera imagen tiene el logo de Tottus
-        if len(images) == 2:
-            tottus_image, free_image = images 
-            return free_image if free_image else tottus_image
-        
-        return images[0]
+        if images:
+            # Si son 2 imagenes tomar la segunda por ser la estandar
+            # La primera imagen tiene el logo de Tottus
+            if len(images) == 2:
+                tottus_image, free_image = images 
+                return free_image if free_image else tottus_image
+            
+            return images[0]
+        else:
+            return "No se consiguio la imagen del producto"
+
     
     def get_pagination_btn(self, driver: webdriver = None) -> WebElement:
         """Funcion que obtiene los botones de paginacion de la pagina"""
